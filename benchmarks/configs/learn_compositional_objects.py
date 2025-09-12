@@ -15,6 +15,7 @@ import numpy as np
 
 from benchmarks.configs.names import CompositionalLearningExperiments
 from benchmarks.configs.pretraining_experiments import supervised_pre_training_base
+from tbp.monty.frameworks.actions.action_samplers import ConstantSampler
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
     MotorSystemConfigInformedGoalStateDriven,
@@ -29,6 +30,7 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     get_object_names_by_idx,
 )
 from tbp.monty.frameworks.config_utils.policy_setup_utils import (
+    make_informed_policy_config,
     make_naive_scan_policy_config,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
@@ -48,7 +50,7 @@ from tbp.monty.frameworks.models.evidence_matching.model import (
     MontyForEvidenceGraphMatching,
 )
 from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
-from tbp.monty.frameworks.models.motor_policies import NaiveScanPolicy
+from tbp.monty.frameworks.models.motor_policies import InformedPolicy, NaiveScanPolicy
 from tbp.monty.frameworks.models.no_reset_evidence_matching import (
     MontyForNoResetEvidenceGraphMatching,
     NoResetEvidenceGraphLM,
@@ -149,21 +151,21 @@ supervised_pre_training_flat_objects_wo_logos.update(
     ),
 )
 
-MINIMAL_3D_OBJECTS = ["016_sphere", "023_mug"]
+# MINIMAL_3D_OBJECTS = ["016_sphere", "023_mug"]
 
-supervised_pre_training_minimal_3d_objects = copy.deepcopy(
-    supervised_pre_training_flat_objects_wo_logos
-)
-supervised_pre_training_minimal_3d_objects.update(
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=get_object_names_by_idx(
-            0, len(MINIMAL_3D_OBJECTS), object_list=MINIMAL_3D_OBJECTS
-        ),
-        object_init_sampler=PredefinedObjectInitializer(
-            rotations=train_rotations_all,
-        ),
-    ),
-)
+# supervised_pre_training_minimal_3d_objects = copy.deepcopy(
+#     supervised_pre_training_flat_objects_wo_logos
+# )
+# supervised_pre_training_minimal_3d_objects.update(
+#     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+#         object_names=get_object_names_by_idx(
+#             0, len(MINIMAL_3D_OBJECTS), object_list=MINIMAL_3D_OBJECTS
+#         ),
+#         object_init_sampler=PredefinedObjectInitializer(
+#             rotations=train_rotations_all,
+#         ),
+#     ),
+# )
 
 # For learning the logos, we present them in a single rotation, but at multiple
 # positions, as the naive scan policy otherwise samples peripheral points on the models
@@ -205,39 +207,39 @@ supervised_pre_training_logos_after_flat_objects.update(
     ),
 )
 
-supervised_pre_training_minimal_logos_after_minimal_3d_objects = copy.deepcopy(
-    supervised_pre_training_minimal_3d_objects
-)
-supervised_pre_training_minimal_logos_after_minimal_3d_objects.update(
-    experiment_args=ExperimentArgs(
-        do_eval=False,
-        n_train_epochs=len(LOGO_POSITIONS) * len(LOGO_ROTATIONS),
-        show_sensor_output=False,
-        model_name_or_path=os.path.join(
-            fe_pretrain_dir,
-            "supervised_pre_training_minimal_3d_objects/pretrained/",
-        ),
-    ),
-    monty_config=TwoLMStackedMontyConfig(
-        monty_args=MontyArgs(num_exploratory_steps=1000),
-        learning_module_configs=two_stacked_constrained_lms_config,
-        motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=dict(
-                policy_class=NaiveScanPolicy,
-                policy_args=make_naive_scan_policy_config(step_size=1),
-            )
-        ),  # use spiral policy for more even object coverage during learning
-    ),
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=get_object_names_by_idx(
-            0, len(MINIMAL_LOGOS), object_list=MINIMAL_LOGOS
-        ),
-        object_init_sampler=PredefinedObjectInitializer(
-            positions=LOGO_POSITIONS,
-            rotations=LOGO_ROTATIONS,
-        ),
-    ),
-)
+# supervised_pre_training_minimal_logos_after_minimal_3d_objects = copy.deepcopy(
+#     supervised_pre_training_minimal_3d_objects
+# )
+# supervised_pre_training_minimal_logos_after_minimal_3d_objects.update(
+#     experiment_args=ExperimentArgs(
+#         do_eval=False,
+#         n_train_epochs=len(LOGO_POSITIONS) * len(LOGO_ROTATIONS),
+#         show_sensor_output=False,
+#         model_name_or_path=os.path.join(
+#             fe_pretrain_dir,
+#             "supervised_pre_training_minimal_3d_objects/pretrained/",
+#         ),
+#     ),
+#     monty_config=TwoLMStackedMontyConfig(
+#         monty_args=MontyArgs(num_exploratory_steps=1000),
+#         learning_module_configs=two_stacked_constrained_lms_config,
+#         motor_system_config=MotorSystemConfigNaiveScanSpiral(
+#             motor_system_args=dict(
+#                 policy_class=NaiveScanPolicy,
+#                 policy_args=make_naive_scan_policy_config(step_size=1),
+#             )
+#         ),  # use spiral policy for more even object coverage during learning
+#     ),
+#     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+#         object_names=get_object_names_by_idx(
+#             0, len(MINIMAL_LOGOS), object_list=MINIMAL_LOGOS
+#         ),
+#         object_init_sampler=PredefinedObjectInitializer(
+#             positions=LOGO_POSITIONS,
+#             rotations=LOGO_ROTATIONS,
+#         ),
+#     ),
+# )
 
 # NOTE: we load the model trained on flat objects and logos, but we inheret from the
 # config used for 3D "flat" objects, since it is similar in step-size, rotations, etc.
@@ -392,6 +394,9 @@ two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
 ]["evidence_threshold_config"] = "all"
 two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
     "learning_module_args"
+]["object_evidence_threshold"] = 1
+two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
+    "learning_module_args"
 ]["gsg_class"] = EvidenceGoalStateGenerator
 two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
     "learning_module_args"
@@ -402,7 +407,7 @@ two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
     elapsed_steps_factor=10,  # Factor that considers the number of elapsed
     # steps as a possible condition for initiating a hypothesis-testing goal
     # state; should be set to an integer reflecting a number of steps
-    min_post_goal_success_steps=75,  # Number of necessary steps for a hypothesis
+    min_post_goal_success_steps=20,  # Number of necessary steps for a hypothesis
     # goal-state to be considered
     x_percent_scale_factor=0.75,  # Scale x-percent threshold to decide
     # when we should focus on pose rather than determining object ID; should
@@ -412,9 +417,9 @@ two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
 )
 
 
-OBJECTS_MUG_WITH_LOGO_ONLY = ["024_mug_tbp_horz"]
+OBJECTS_DISK_WITH_LOGO_ONLY = ["007_disk_tbp_horz"]
 
-supervised_pre_training_objects_mug_with_logo_only_and_resampling = copy.deepcopy(
+supervised_pre_training_objects_disk_with_logo_only_and_resampling = copy.deepcopy(
     supervised_pre_training_objects_with_logos_lvl2_comp_models
 )
 
@@ -425,7 +430,7 @@ supervised_pre_training_objects_mug_with_logo_only_and_resampling = copy.deepcop
 
 MODEL_PATH_WITH_MINIMAL_TRAINING = os.path.join(
     fe_pretrain_dir,
-    "supervised_pre_training_minimal_logos_after_minimal_3d_objects/pretrained/",
+    "supervised_pre_training_logos_after_flat_objects/pretrained/",
 )
 
 # Debugging - shouldn't have any issues learning in this second stage, because the only
@@ -433,9 +438,11 @@ MODEL_PATH_WITH_MINIMAL_TRAINING = os.path.join(
 # Except... Monty class is set globally (MontyForNoResetEvidenceGraphMatching) -->
 # but actually we're not concerned with unsupervised inference, so probably not needed
 
+# ?Related to resampling not reaching terminal condition, so essentially no outputs?
+
 temp_few_rotations = [[0, 0, 0]]
 
-supervised_pre_training_objects_mug_with_logo_only_and_resampling.update(
+supervised_pre_training_objects_disk_with_logo_only_and_resampling.update(
     # The low-level LM should use hypothesis resampling during its inference
     experiment_args=ExperimentArgs(
         do_eval=False,
@@ -446,13 +453,24 @@ supervised_pre_training_objects_mug_with_logo_only_and_resampling.update(
         show_sensor_output=True,
     ),
     monty_config=TwoLMStackedMontyConfig(
+        monty_args=MontyArgs(num_exploratory_steps=0, min_train_steps=100),
         monty_class=MontyForEvidenceGraphMatching,
         learning_module_configs=two_stacked_constrained_lms_config_with_resampling,
-        motor_system_config=MotorSystemConfigInformedGoalStateDriven(),
+        motor_system_config=MotorSystemConfigInformedGoalStateDriven(
+            motor_system_args=dict(
+                policy_class=InformedPolicy,
+                policy_args=make_informed_policy_config(
+                    action_space_type="distant_agent_no_translation",
+                    action_sampler_class=ConstantSampler,
+                    rotation_degrees=0.5,
+                    use_goal_state_driven_actions=True,
+                ),
+            ),
+        ),
     ),
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=get_object_names_by_idx(
-            0, len(OBJECTS_MUG_WITH_LOGO_ONLY), object_list=OBJECTS_MUG_WITH_LOGO_ONLY
+            0, len(OBJECTS_DISK_WITH_LOGO_ONLY), object_list=OBJECTS_DISK_WITH_LOGO_ONLY
         ),
         object_init_sampler=PredefinedObjectInitializer(
             rotations=temp_few_rotations,
@@ -464,13 +482,13 @@ experiments = CompositionalLearningExperiments(
     supervised_pre_training_flat_objects_wo_logos=supervised_pre_training_flat_objects_wo_logos,
     supervised_pre_training_logos_after_flat_objects=supervised_pre_training_logos_after_flat_objects,
     supervised_pre_training_curved_objects_after_flat_and_logo=supervised_pre_training_curved_objects_after_flat_and_logo,
-    supervised_pre_training_minimal_3d_objects=supervised_pre_training_minimal_3d_objects,
-    supervised_pre_training_minimal_logos_after_minimal_3d_objects=supervised_pre_training_minimal_logos_after_minimal_3d_objects,
+    # supervised_pre_training_minimal_3d_objects=supervised_pre_training_minimal_3d_objects,
+    # supervised_pre_training_minimal_logos_after_minimal_3d_objects=supervised_pre_training_minimal_logos_after_minimal_3d_objects,
     supervised_pre_training_objects_with_logos_lvl1_monolithic_models=supervised_pre_training_objects_with_logos_lvl1_monolithic_models,
     supervised_pre_training_objects_with_logos_lvl1_comp_models=supervised_pre_training_objects_with_logos_lvl1_comp_models,
     supervised_pre_training_objects_with_logos_lvl2_comp_models=supervised_pre_training_objects_with_logos_lvl2_comp_models,
     supervised_pre_training_objects_with_logos_lvl3_comp_models=supervised_pre_training_objects_with_logos_lvl3_comp_models,
     supervised_pre_training_objects_with_logos_lvl4_comp_models=supervised_pre_training_objects_with_logos_lvl4_comp_models,
-    supervised_pre_training_objects_mug_with_logo_only_and_resampling=supervised_pre_training_objects_mug_with_logo_only_and_resampling,
+    supervised_pre_training_objects_disk_with_logo_only_and_resampling=supervised_pre_training_objects_disk_with_logo_only_and_resampling,
 )
 CONFIGS = asdict(experiments)

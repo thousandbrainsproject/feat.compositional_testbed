@@ -461,6 +461,9 @@ class EvidenceGraphLM(GraphLM):
             sender_id=self.learning_module_id,
             sender_type="LM",
         )
+        if use_state:
+            print(f"Sending state with object-ID {object_id_features}")
+
         return hypothesized_state
 
     # ------------------ Getters & Setters ---------------------

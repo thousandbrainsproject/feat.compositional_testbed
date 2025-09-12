@@ -70,14 +70,14 @@ class CompositionalLearningExperiments:
     supervised_pre_training_flat_objects_wo_logos: dict
     supervised_pre_training_logos_after_flat_objects: dict
     supervised_pre_training_curved_objects_after_flat_and_logo: dict
-    supervised_pre_training_minimal_3d_objects: dict
-    supervised_pre_training_minimal_logos_after_minimal_3d_objects: dict
+    # supervised_pre_training_minimal_3d_objects: dict
+    # supervised_pre_training_minimal_logos_after_minimal_3d_objects: dict
     supervised_pre_training_objects_with_logos_lvl1_monolithic_models: dict
     supervised_pre_training_objects_with_logos_lvl1_comp_models: dict
     supervised_pre_training_objects_with_logos_lvl2_comp_models: dict
     supervised_pre_training_objects_with_logos_lvl3_comp_models: dict
     supervised_pre_training_objects_with_logos_lvl4_comp_models: dict
-    supervised_pre_training_objects_mug_with_logo_only_and_resampling: dict
+    supervised_pre_training_objects_disk_with_logo_only_and_resampling: dict
 
 
 @dataclass

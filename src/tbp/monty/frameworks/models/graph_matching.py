@@ -1159,7 +1159,9 @@ class GraphMemory(LMMemory):
         if graph_id is None:
             logger.info("no match found in time, not updating memory")
         else:
+            print(f"Iterating over input channels: {features.keys()}")
             for input_channel in features.keys():
+                print(f"Current input channel: {input_channel}")
                 (
                     input_channel_features,
                     input_channel_locations,
@@ -1512,7 +1514,17 @@ class GraphMemory(LMMemory):
         """
         # NOTE: Could use any feature here but using pose_fully_defined since it
         # is one dimensional and a required feature in each State.
+        # print("Current features:")
+        # print(features)
         missing_features = np.isnan(features["pose_fully_defined"]).flatten()
+        print(
+            f"Current pose fully defined features: {features['pose_fully_defined']} of shape {np.shape(features['pose_fully_defined'])}"
+        )
+        print(f"features in buffer: {features.keys()}")
+        print(f"Shape of missing features: {np.shape(missing_features)}")
+        print(f"Shape of locations: {np.shape(locations)}")
+        print(f"Sum of missing features: {np.sum(missing_features)}")
+        print(f"Sum of not-missing features: {np.sum(~missing_features)}")
         # Remove missing features (contain nan values)
         locations = locations[~missing_features]
         for feature in features.keys():
