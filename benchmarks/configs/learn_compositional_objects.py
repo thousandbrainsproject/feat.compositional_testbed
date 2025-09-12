@@ -317,6 +317,71 @@ supervised_pre_training_objects_with_logos_lvl4_comp_models.update(
     ),
 )
 
+
+two_stacked_constrained_lms_config_with_resampling = copy.deepcopy(
+    two_stacked_constrained_lms_config
+)
+
+two_stacked_constrained_lms_config_with_resampling.update(
+    learning_module_0=dict(
+        learning_module_class=EvidenceGraphLM,
+        learning_module_args=dict(
+            max_match_distance=0.001,
+            tolerances={
+                "patch_0": {
+                    "hsv": np.array([0.1, 1, 1]),
+                    "principal_curvatures_log": np.ones(2),
+                }
+            },
+            # Note graph-delta-thresholds are not used for grid-based models
+            feature_weights={},
+            max_graph_size=0.3,
+            num_model_voxels_per_dim=200,
+            max_nodes_per_graph=2000,
+            object_evidence_threshold=20,  # TODO - C: is this reasonable?
+        ),
+    ),
+    learning_module_1=dict(
+        learning_module_class=EvidenceGraphLM,
+        learning_module_args=dict(
+            max_match_distance=0.001,  # TODO: C - Scale with receptive field size
+            tolerances={
+                "patch_1": {
+                    "hsv": np.array([0.1, 1, 1]),
+                    "principal_curvatures_log": np.ones(2),
+                },
+                # object Id currently is an int representation of the strings
+                # in the object label so we keep this tolerance high. This is
+                # just until we have added a way to encode object ID with some
+                # real similarity measure.
+                "learning_module_0": {"object_id": 1},
+            },
+            feature_weights={"learning_module_0": {"object_id": 1}},
+            max_graph_size=0.4,
+            num_model_voxels_per_dim=200,
+            max_nodes_per_graph=2000,
+        ),
+    ),
+)
+
+OBJECTS_MUG_WITH_LOGO_ONLY = ["028_mug_tbp_horz_bent"]
+
+supervised_pre_training_objects_mug_with_logo_only = copy.deepcopy(
+    supervised_pre_training_objects_with_logos_lvl2_comp_models
+)
+
+supervised_pre_training_objects_mug_with_logo_only.update(
+    # The low-level LM should use hypothesis resampling during its inference
+    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+        object_names=get_object_names_by_idx(
+            0, len(OBJECTS_MUG_WITH_LOGO_ONLY), object_list=OBJECTS_MUG_WITH_LOGO_ONLY
+        ),
+        object_init_sampler=PredefinedObjectInitializer(
+            rotations=train_rotations_all,
+        ),
+    ),
+)
+
 experiments = CompositionalLearningExperiments(
     supervised_pre_training_flat_objects_wo_logos=supervised_pre_training_flat_objects_wo_logos,
     supervised_pre_training_logos_after_flat_objects=supervised_pre_training_logos_after_flat_objects,
