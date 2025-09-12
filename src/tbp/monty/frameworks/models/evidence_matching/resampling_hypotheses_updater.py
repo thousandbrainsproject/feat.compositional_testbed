@@ -277,7 +277,7 @@ class ResamplingHypothesesUpdater:
                 mapper=mapper,
                 tracker=tracker,
             )
-            informed_hypotheses = self._sample_informed(
+            informed_hypotheses, prediction_error = self._sample_informed(
                 channel_features=features[input_channel],
                 graph_id=graph_id,
                 informed_count=informed_count,
@@ -288,7 +288,7 @@ class ResamplingHypothesesUpdater:
             # We only displace existing hypotheses since the newly resampled hypotheses
             # should not be affected by the displacement from the last sensory input.
             if existing_count > 0:
-                existing_hypotheses = (
+                existing_hypotheses, prediction_error = (
                     self.hypotheses_displacer.displace_hypotheses_and_compute_evidence(
                         channel_displacement=displacements[input_channel],
                         channel_features=features[input_channel],
@@ -531,6 +531,7 @@ class ResamplingHypothesesUpdater:
             The sampled informed hypotheses.
 
         """
+        prediction_error = 0.0
         # Return empty arrays for no hypotheses to sample
         if informed_count == 0:
             return ChannelHypotheses(
@@ -538,7 +539,7 @@ class ResamplingHypothesesUpdater:
                 locations=np.zeros((0, 3)),
                 poses=np.zeros((0, 3, 3)),
                 evidence=np.zeros(0),
-            )
+            ), prediction_error
 
         num_hyps_per_node = self._num_hyps_per_node(channel_features)
         # === Calculate selected evidence by top-k indices === #
@@ -623,4 +624,4 @@ class ResamplingHypothesesUpdater:
             locations=selected_locations,
             poses=selected_rotations,
             evidence=selected_feature_evidence,
-        )
+        ), prediction_error
