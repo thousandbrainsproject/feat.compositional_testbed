@@ -44,6 +44,9 @@ from tbp.monty.frameworks.environments.logos_on_objs import (
 from tbp.monty.frameworks.models.evidence_matching.learning_module import (
     EvidenceGraphLM,
 )
+from tbp.monty.frameworks.models.evidence_matching.model import (
+    MontyForEvidenceGraphMatching,
+)
 from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 from tbp.monty.frameworks.models.motor_policies import NaiveScanPolicy
 from tbp.monty.frameworks.models.no_reset_evidence_matching import (
@@ -399,7 +402,7 @@ two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
     elapsed_steps_factor=10,  # Factor that considers the number of elapsed
     # steps as a possible condition for initiating a hypothesis-testing goal
     # state; should be set to an integer reflecting a number of steps
-    min_post_goal_success_steps=50,  # Number of necessary steps for a hypothesis
+    min_post_goal_success_steps=75,  # Number of necessary steps for a hypothesis
     # goal-state to be considered
     x_percent_scale_factor=0.75,  # Scale x-percent threshold to decide
     # when we should focus on pose rather than determining object ID; should
@@ -425,18 +428,25 @@ MODEL_PATH_WITH_MINIMAL_TRAINING = os.path.join(
     "supervised_pre_training_minimal_logos_after_minimal_3d_objects/pretrained/",
 )
 
+# Debugging - shouldn't have any issues learning in this second stage, because the only
+# LM that is being updaged does not use the hypothesis resampler...
+# Except... Monty class is set globally (MontyForNoResetEvidenceGraphMatching) -->
+# but actually we're not concerned with unsupervised inference, so probably not needed
+
+temp_few_rotations = [[0, 0, 0]]
+
 supervised_pre_training_objects_mug_with_logo_only_and_resampling.update(
     # The low-level LM should use hypothesis resampling during its inference
     experiment_args=ExperimentArgs(
         do_eval=False,
-        n_train_epochs=len(train_rotations_all),
+        n_train_epochs=len(temp_few_rotations),
         model_name_or_path=MODEL_PATH_WITH_MINIMAL_TRAINING,
         supervised_lm_ids=["learning_module_1"],
         min_lms_match=2,
-        show_sensor_output=False,
+        show_sensor_output=True,
     ),
     monty_config=TwoLMStackedMontyConfig(
-        monty_class=MontyForNoResetEvidenceGraphMatching,
+        monty_class=MontyForEvidenceGraphMatching,
         learning_module_configs=two_stacked_constrained_lms_config_with_resampling,
         motor_system_config=MotorSystemConfigInformedGoalStateDriven(),
     ),
@@ -445,7 +455,7 @@ supervised_pre_training_objects_mug_with_logo_only_and_resampling.update(
             0, len(OBJECTS_MUG_WITH_LOGO_ONLY), object_list=OBJECTS_MUG_WITH_LOGO_ONLY
         ),
         object_init_sampler=PredefinedObjectInitializer(
-            rotations=train_rotations_all,
+            rotations=temp_few_rotations,
         ),
     ),
 )
