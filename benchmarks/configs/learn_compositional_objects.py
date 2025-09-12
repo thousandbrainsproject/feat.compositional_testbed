@@ -44,6 +44,10 @@ from tbp.monty.frameworks.models.evidence_matching.learning_module import (
     EvidenceGraphLM,
 )
 from tbp.monty.frameworks.models.motor_policies import NaiveScanPolicy
+from tbp.monty.frameworks.models.no_reset_evidence_matching import (
+    MontyForNoResetEvidenceGraphMatching,
+    NoResetEvidenceGraphLM,
+)
 from tbp.monty.simulators.habitat.configs import (
     EnvInitArgsTwoLMDistantStackedMount,
     TwoLMStackedDistantMountHabitatDatasetArgs,
@@ -72,6 +76,7 @@ two_stacked_constrained_lms_config = dict(
             # Note graph-delta-thresholds are not used for grid-based models
             feature_weights={},
             max_graph_size=0.3,
+            use_multithreading=False,
             num_model_voxels_per_dim=200,
             max_nodes_per_graph=2000,
             object_evidence_threshold=20,  # TODO - C: is this reasonable?
@@ -92,6 +97,7 @@ two_stacked_constrained_lms_config = dict(
                 # real similarity measure.
                 "learning_module_0": {"object_id": 1},
             },
+            use_multithreading=False,
             feature_weights={"learning_module_0": {"object_id": 1}},
             max_graph_size=0.4,
             num_model_voxels_per_dim=200,
@@ -112,7 +118,6 @@ supervised_pre_training_flat_objects_wo_logos.update(
     experiment_args=ExperimentArgs(
         do_eval=False,
         n_train_epochs=len(train_rotations_all),
-        show_sensor_output=False,
     ),
     monty_config=TwoLMStackedMontyConfig(
         monty_args=MontyArgs(num_exploratory_steps=1000),
@@ -322,56 +327,28 @@ two_stacked_constrained_lms_config_with_resampling = copy.deepcopy(
     two_stacked_constrained_lms_config
 )
 
-two_stacked_constrained_lms_config_with_resampling.update(
-    learning_module_0=dict(
-        learning_module_class=EvidenceGraphLM,
-        learning_module_args=dict(
-            max_match_distance=0.001,
-            tolerances={
-                "patch_0": {
-                    "hsv": np.array([0.1, 1, 1]),
-                    "principal_curvatures_log": np.ones(2),
-                }
-            },
-            # Note graph-delta-thresholds are not used for grid-based models
-            feature_weights={},
-            max_graph_size=0.3,
-            num_model_voxels_per_dim=200,
-            max_nodes_per_graph=2000,
-            object_evidence_threshold=20,  # TODO - C: is this reasonable?
-        ),
-    ),
-    learning_module_1=dict(
-        learning_module_class=EvidenceGraphLM,
-        learning_module_args=dict(
-            max_match_distance=0.001,  # TODO: C - Scale with receptive field size
-            tolerances={
-                "patch_1": {
-                    "hsv": np.array([0.1, 1, 1]),
-                    "principal_curvatures_log": np.ones(2),
-                },
-                # object Id currently is an int representation of the strings
-                # in the object label so we keep this tolerance high. This is
-                # just until we have added a way to encode object ID with some
-                # real similarity measure.
-                "learning_module_0": {"object_id": 1},
-            },
-            feature_weights={"learning_module_0": {"object_id": 1}},
-            max_graph_size=0.4,
-            num_model_voxels_per_dim=200,
-            max_nodes_per_graph=2000,
-        ),
-    ),
-)
+two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
+    "learning_module_class"
+] = NoResetEvidenceGraphLM
+two_stacked_constrained_lms_config_with_resampling["learning_module_0"][
+    "learning_module_args"
+]["evidence_threshold_config"] = "all"
 
 OBJECTS_MUG_WITH_LOGO_ONLY = ["028_mug_tbp_horz_bent"]
 
-supervised_pre_training_objects_mug_with_logo_only = copy.deepcopy(
+supervised_pre_training_objects_mug_with_logo_only_and_resampling = copy.deepcopy(
     supervised_pre_training_objects_with_logos_lvl2_comp_models
 )
 
-supervised_pre_training_objects_mug_with_logo_only.update(
+# Other improvements --> surface policy during learning --> but this isn't currently setup for stacked LMs
+# Only know about the mug and the logo --> this would require a fair amount of retraining
+
+supervised_pre_training_objects_mug_with_logo_only_and_resampling.update(
     # The low-level LM should use hypothesis resampling during its inference
+    monty_config=TwoLMStackedMontyConfig(
+        monty_class=MontyForNoResetEvidenceGraphMatching,
+        learning_module_configs=two_stacked_constrained_lms_config_with_resampling,
+    ),
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=get_object_names_by_idx(
             0, len(OBJECTS_MUG_WITH_LOGO_ONLY), object_list=OBJECTS_MUG_WITH_LOGO_ONLY
@@ -391,5 +368,6 @@ experiments = CompositionalLearningExperiments(
     supervised_pre_training_objects_with_logos_lvl2_comp_models=supervised_pre_training_objects_with_logos_lvl2_comp_models,
     supervised_pre_training_objects_with_logos_lvl3_comp_models=supervised_pre_training_objects_with_logos_lvl3_comp_models,
     supervised_pre_training_objects_with_logos_lvl4_comp_models=supervised_pre_training_objects_with_logos_lvl4_comp_models,
+    supervised_pre_training_objects_mug_with_logo_only_and_resampling=supervised_pre_training_objects_mug_with_logo_only_and_resampling,
 )
 CONFIGS = asdict(experiments)

@@ -331,9 +331,13 @@ class ResamplingHypothesesUpdater:
             # Update tracker evidence
             tracker.update(channel_hypotheses.evidence, input_channel)
 
+        # TODO C add calculation of prediction error
+        prediction_error = 0.0
+
         return (
             hypotheses_updates,
             resampling_telemetry if self.include_telemetry else None,
+            prediction_error,
         )
 
     def _num_hyps_per_node(self, channel_features: dict) -> int:
