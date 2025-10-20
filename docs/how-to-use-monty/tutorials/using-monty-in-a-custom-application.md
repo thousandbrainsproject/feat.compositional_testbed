@@ -114,7 +114,7 @@ Learning and inference on Omniglot characters can be implemented by writing two 
 ![Custom classes for character recognition on the Omniglot dataset](../../figures/how-to-use-monty/omniglot_custom_classes.png#width=500px)
 
 An experiment config for training on the Omniglot dataset can then look like this:
-```
+```python
 omniglot_training = dict(
 	experiment_class=MontySupervisedObjectPretrainingExperiment,
 	experiment_args=SupervisedPretrainingExperimentArgs(
@@ -259,11 +259,12 @@ omniglot_sensor_module_config = dict(
 ```
 
 Finally, you will need to set the `experiments` variable at the bottom of the file to this:
-```
+```python
 experiments = MyExperiments(
-	omniglot_training=omniglot_training,
-	omniglot_inference=omniglot_inference,
+    omniglot_training=omniglot_training,
+    omniglot_inference=omniglot_inference,
 )
+CONFIGS = asdict(experiments)
 ```
 And add the two experiments into the `MyExperiment` class in `benchmarks/configs/names.py`.
 
